@@ -25,9 +25,10 @@
 ;; - Add explicitly customizable constants.
 ;; - Add ability to override constants.
 ;; - Better error messages.
-;; - Fix docstring (`\,' doesn't take the macro's docstring)
+;; - Make `describe-function' report `\,' as a macro
 
 ;;; Code:
+(require 'backquote) ;; for docstring reasons
 (require 'dash)
 
 (defconst \,-constants
@@ -44,7 +45,7 @@ For example ,\(pi + 1) expands to \(+ float-pi 1).")
 ;; this: (if (boundp 'e) e float-e).
 
 (defmacro commath (&rest expr)
-  "Perform math in non-prefix notation.
+  "Rewrite math EXPRESSIONs as Lisp forms.
 
 This macro allows infix math operations and comparisons, formed
 from a limited set of expression types, refered to as \"commath
@@ -226,6 +227,33 @@ nil."
           ;; extract and combine the x and the (y z).
           (--map (cons (cadar it) (cdr it))
                  (cdr args)))))
+
+;; Normally, backquote.el sets the docstring for `\,' using the
+;; function-documentation symbol property, and sets the
+;; reader-construct property, which makes `describe-function' say it
+;; is a reader construct and not include a signature.
+;;
+;; We could just delete both of those properties and rely on the
+;; documentation from the macro's definition, but
+;; `help-fns--signature', doesn't handle the comma very nicely (it
+;; would print as (\, EXPR)).
+;;
+;; Instead, we take advantage of the lack of signature in reader-
+;; construct help output and add the proper signature, which looks
+;; correct in output. While we're at it, add back the see-also bit
+;; from backquote.el to avoid confusion, just after the summary line
+;; of the `commath' docstring.
+(put '\, 'function-documentation nil)
+
+(let* ((doc (documentation '\,))
+       (split (+ 2 (save-match-data (string-match "\n\n" doc)))))
+  (put '\, 'function-documentation
+       (concat ",EXPRESSION"
+               "\n\n"
+               (substring doc 0 split) ;; take first line + newline
+               "(See `\\=`' (also `pcase') for other usages of `,'.)"
+               "\n\n"
+               (substring doc split))))
 
 ;; Local Variables:
 ;; lexical-binding: t;
