@@ -22,11 +22,26 @@
 ;;   - Convert subtraction to negation and addition.
 ;; - Add customizable operator list.
 ;; - Add chainable comparisons.
-;; - Add constants.
+;; - Add explicitly customizable constants.
+;; - Add ability to override constants.
 ;; - Better error messages.
+;; - Fix docstring (`\,' doesn't take the macro's docstring)
 
 ;;; Code:
 (require 'dash)
+
+(defconst \,-constants
+  '((pi . float-pi)
+    (e . float-e))
+  "Constants for commath expressions. These are always rewritten to
+their associated values in commath expressions.
+
+For example ,\(pi + 1) expands to \(+ float-pi 1).")
+;; Constants are /always/ rewritten. Ideally, we would want to expand
+;; them only when they don't have a different definition, but we can't
+;; know that when the expansion takes place, so they are
+;; unconditional. One alternative would be to expand constants like
+;; this: (if (boundp 'e) e float-e).
 
 (defmacro \, (&rest expr)
   "Perform math in non-prefix notation.
@@ -36,10 +51,13 @@ from a limited set of expression types, refered to as \"commath
 expressions.\"
 
 There are five types of commath expression. First is a simple
-value, which may be a number or variable name. These evaluate
-to their values. Second is X OP Y, where X and Y are commath
-expressions, and OP is an infix operator from the list below.
-There must be spaces around all infix operators.
+value, which may be a number or variable name. These are not
+rewritten by commath, except for `pi' and `e', which expand to
+`float-pi' and `float-e' respectively.
+
+Second is X OP Y, where X and Y are commath expressions, and OP
+is an infix operator from the list below. There must be spaces
+around all infix operators.
 
 Third is grouping, which may use either parentheses or brackets,
 i.e. (EXPR) or [EXPR]. If the grouping symbols are left out of an
@@ -75,6 +93,8 @@ and returns unprocessed token types."
     ((pred numberp) 'number)
     ((or '+ '- '* '/ '% '< '> '<= '>= '/= '^ 'and 'or 'mod) 'operator)
     ((pred vectorp) 'vector-group)
+    ;; (Would use assq below, but wrong arg order.)
+    ((pred (map-contains-key \,-constants)) 'constant)
     ((pred symbolp) 'name)
     ;; Other non-cons values are not recognized tokens.
     ((pred (not consp)) nil)
@@ -91,6 +111,7 @@ This must be a number, variable name, or group."
   (pcase (\,-token-type arg)
     ('number arg)
     ('name arg)
+    ('constant (cdr (assq arg \,-constants)))
     ('vector-group (cons '\, (append arg nil)))
     ('group-or-args (cons '\, arg))
     ('quoted arg)
