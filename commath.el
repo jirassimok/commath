@@ -43,7 +43,7 @@ For example ,\(pi + 1) expands to \(+ float-pi 1).")
 ;; unconditional. One alternative would be to expand constants like
 ;; this: (if (boundp 'e) e float-e).
 
-(defmacro \, (&rest expr)
+(defmacro commath (&rest expr)
   "Perform math in non-prefix notation.
 
 This macro allows infix math operations and comparisons, formed
@@ -77,14 +77,17 @@ necessary.
 The allowed operators are `+', `-', `*', `/', `%', `mod', `<',
 `>', `<=', `>=', `/=', `and', `or', and `^'. These expand to the
 Emacs Lisp functions of the same names, except for `^', which
-expands to `expt'."
+expands to `expt'.
+
+\(fn EXPRESSION)"
   (pcase (length expr)
     (1 `(\,-simple-expr ,(car expr)))
     (2 `(\,-fn-expr ,(car expr) ,(cadr expr)))
     (3 `(\,-op-expr ,(car expr) ,(cadr expr) ,(caddr expr)))
     (_ (\,-group-precedence expr))))
 
-(defalias 'commath '\,)
+;; Define like `\`'; `\,' appears as its own object, not an alias.
+(defalias '\, (symbol-function 'commath))
 
 (defun \,-token-type (token)
   "Simple token checker. Performs naive token type check
