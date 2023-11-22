@@ -23,7 +23,6 @@
 ;; - Add customizable operator list.
 ;; - Add chainable comparisons.
 ;; - Add constants.
-;; - Ban `1-' for being confusing.
 ;; - Better error messages.
 
 ;;; Code:
@@ -102,14 +101,23 @@ This must be a number, variable name, or group."
   "Expand two-argument commath input.
 
 This must be a function call."
-  (let ((t1 (\,-token-type fname))
-        (t2 (\,-token-type args)))
-    (when (memq 'operator (list t1 t2))
-      (let ((name (if (eq 'operator t1) fname args)))
-        (error "Operator (%s) expected two arguments." name)))
-    (if (and (eq t1 'name) (eq t2 'group-or-args))
-        (cons fname (--map (cons '\, it) (\,-split-fn-args args)))
-      (error "Invalid commath expression."))))
+  (let ((tname (\,-token-type fname))
+        (targs (\,-token-type args)))
+    (cond
+     ;; Correct case:
+     ((and (eq tname 'name) (eq targs 'group-or-args))
+      (when (eq fname '1-)
+        (error "Illegal commath expression; use (x - 1) instead of (1-(x))."))
+      (cons fname (--map (cons '\, it) (\,-split-fn-args args))))
+     ;; Bad expression types:
+     ((eq 'operator tname)
+      (error "Operator (%s) expected two arguments." fname))
+     ((eq 'operator targs)
+      (error "Operator (%s) expected two arguments." args))
+     ((or (null tname) (null targs))
+      (error "Invalid type for commath expression (%s)."
+             (if tname args fname)))
+     (t (error "Invalid commath expression (%s %s)." fname args)))))
 
 (defmacro \,-op-expr (arg1 op arg2)
   "Expand three-argument commath input.
