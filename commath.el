@@ -20,12 +20,14 @@
 ;; TODO:
 ;; - Auto-group and/or/+/* operations.
 ;;   - Convert subtraction to negation and addition.
-;; - Add customizable operator list.
+;; - Add explicitly customizable operator list.
 ;; - Add chainable comparisons.
 ;; - Add explicitly customizable constants.
 ;; - Add ability to override constants.
 ;; - Better error messages.
 ;; - Make `describe-function' report `\,' as a macro
+;; - Fix group-precedence to rewrite instead of expanding operators
+;;   fully
 
 ;;; Code:
 (require 'backquote) ;; for docstring reasons
@@ -43,6 +45,25 @@ For example ,\(pi + 1) expands to \(+ float-pi 1).")
 ;; know that when the expansion takes place, so they are
 ;; unconditional. One alternative would be to expand constants like
 ;; this: (if (boundp 'e) e float-e).
+
+(defconst \,-operator-function-alist
+  '((^ . expt))
+  "List associating operators with their functions.
+
+Any operator not in this list is associated with itself.")
+
+(defconst \,-operator-rules
+  '((left and)
+    (left or)
+    (left < > <= >= = /=)
+    (left + -)
+    (left * / % mod)
+    (right ^))
+  "List of commath operators ordered by precedence and tagged by
+associativity.")
+
+(defconst \,-operators (-mapcat 'cdr \,-operator-rules)
+  "List of allowed operators in commath.")
 
 (defmacro commath (&rest expr)
   "Rewrite math EXPRESSIONs as Lisp forms.
@@ -95,7 +116,7 @@ expands to `expt'.
 and returns unprocessed token types."
   (pcase token
     ((pred numberp) 'number)
-    ((or '+ '- '* '/ '% '< '> '<= '>= '/= '^ 'and 'or 'mod) 'operator)
+    ((pred (seq-contains-p \,-operators)) 'operator)
     ((pred vectorp) 'vector-group)
     ;; (Would use assq below, but wrong arg order.)
     ((pred (map-contains-key \,-constants)) 'constant)
@@ -151,8 +172,7 @@ This must be an operator expression."
   (unless (eq (\,-token-type op) 'operator)
     ;; TODO: Better error messages.
     (error "Invalid commath expression (%s %s %s)." arg1 op arg2))
-  ;; TODO: Make special operator alist to define more operators
-  (when (eq op '^) (setq op 'expt))
+  (setq op (alist-get op \,-operator-function-alist op))
   (list op (list '\, arg1) (list '\, arg2)))
 
 (defun \,-group-precedence (tokens)
@@ -163,13 +183,7 @@ macro expansion.
 
 TOKENS is the list of tokens to group. This list may be
 destructively modified."
-  (\,--group-precedence 'right tokens
-   '((left and)
-     (left or)
-     (left < > <= >= = /=)
-     (left + -)
-     (left * / % mod)
-     (right ^))))
+  (\,--group-precedence 'right tokens \,-operator-rules))
 
 (defun \,--group-precedence (dir tokens remaining-ops)
   "Handle associativity by reversing the tokens at certain points.
@@ -196,7 +210,8 @@ that remain ungrouped will be in the initial order."
           ;; no op found despite earlier check
           (error "Op not found, then found."))
         ;; op found, recur on each side
-        (list op
+        ;; TODO: This should be a rewrite, not expansion.
+        (list (alist-get op \,-operator-function-alist op)
               (\,--group-precedence assoc left remaining-ops)
               (\,--group-precedence assoc right remaining-ops)))))))
 
