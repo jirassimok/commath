@@ -101,6 +101,17 @@ The allowed operators are `+', `-', `*', `/', `%', `mod', `<',
 Emacs Lisp functions of the same names, except for `^', which
 expands to `expt'.
 
+Here is an example demonstrating all of these features:
+    ,(1 / 2 * (a - 3 ^ [x / 4] ^ 5)
+      * nth(2, mapcar('fn, '(1 2 3))))
+
+That expands to the following:
+    (* (* (/ 1 2)
+          (- a (expt 3
+                     (expt (/ x 4)
+                           5))))
+       (nth 6 (mapcar 'fn '(1 2 3))))
+
 \(fn EXPRESSION)"
   (pcase (length expr)
     (1 `(\,-simple-expr ,(car expr)))
