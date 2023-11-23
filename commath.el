@@ -183,7 +183,8 @@ This must be a function call."
      ((or (null tname) (null targs))
       (error "Invalid type for commath expression (%s)."
              (if tname args fname)))
-     (t (error "Invalid commath expression (%s %s)." fname args)))))
+     (:else
+      (error "Invalid commath expression (%s %s)." fname args)))))
 
 (defmacro \,-op-expr (arg1 op arg2)
   "Expand three-argument commath input.
@@ -217,7 +218,7 @@ The list of TOKENS may be destructively modified."
      ((--none? (memq it ops) tokens)
       (\,-group-precedence dir tokens later-ops))
      ;; Target operator is present
-     (t
+     (:else
       (unless (eq dir assoc)
         (setq tokens (reverse tokens)))
       (-let [(left op right) (\,--group-operator ops tokens)]
