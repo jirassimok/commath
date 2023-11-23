@@ -140,6 +140,15 @@ and returns unprocessed token types."
     ;; other cons must be group or args
     (_ 'group-or-args)))
 
+;; Convenience functions for creating commath forms in macros
+(defun \,--wrap (arg)
+  "Put a comma in front of something."
+  (list '\, arg))
+
+(defun \,--ify (arg) ;; "commathify"
+  "Turn a form into a comma form."
+  (cons '\, arg))
+
 (defmacro \,-simple-expr (arg)
   "Expand single-argument commath input.
 
@@ -148,8 +157,8 @@ This must be a number, variable name, or group."
     ('number arg)
     ('name arg)
     ('constant (cdr (assq arg \,-constants)))
-    ('vector-group (cons '\, (append arg nil)))
-    ('group-or-args (cons '\, arg))
+    ('vector-group (\,--ify (append arg nil)))
+    ('group-or-args (\,--ify arg))
     ('quoted arg)
     ('operator (error "Operator (%s) expected two arguments." arg))
     (_ (error "Invalid type for commath expression."))))
@@ -165,7 +174,7 @@ This must be a function call."
      ((and (eq tname 'name) (eq targs 'group-or-args))
       (when (eq fname '1-)
         (error "Illegal commath expression; use (x - 1) instead of (1-(x))."))
-      (cons fname (--map (cons '\, it) (\,-split-fn-args args))))
+      (cons fname (--map (\,--ify it) (\,-split-fn-args args))))
      ;; Bad expression types:
      ((eq 'operator tname)
       (error "Operator (%s) expected two arguments." fname))
@@ -184,7 +193,7 @@ This must be an operator expression."
     ;; TODO: Better error messages.
     (error "Invalid commath expression (%s %s %s)." arg1 op arg2))
   (setq op (alist-get op \,-operator-function-alist op))
-  (list op (list '\, arg1) (list '\, arg2)))
+  (list op (\,--wrap arg1) (\,--wrap arg2)))
 
 (defun \,-group-precedence (dir tokens remaining-ops)
   "Simplify commath expression TOKENS by grouping around operators.
@@ -203,7 +212,7 @@ The list of TOKENS may be destructively modified."
     (cond
      ;; No operators left: return tokens in `right' order
      ((null ops)
-      (list '\, (if (eq dir 'left) (reverse tokens) tokens)))
+      (\,--wrap (if (eq dir 'left) (reverse tokens) tokens)))
      ;; Target operator not present: search for rest.
      ((--none? (memq it ops) tokens)
       (\,-group-precedence dir tokens later-ops))
