@@ -117,7 +117,7 @@ That expands to the following:
     (1 `(\,-simple-expr ,(car expr)))
     (2 `(\,-fn-expr ,(car expr) ,(cadr expr)))
     (3 `(\,-op-expr ,(car expr) ,(cadr expr) ,(caddr expr)))
-    (_ (\,-group-precedence expr))))
+    (_ (\,-group-precedence 'right expr \,-operator-rules))))
 
 ;; Define like `\`'; `\,' appears as its own object, not an alias.
 (defalias '\, (symbol-function 'commath))
@@ -186,55 +186,57 @@ This must be an operator expression."
   (setq op (alist-get op \,-operator-function-alist op))
   (list op (list '\, arg1) (list '\, arg2)))
 
-(defun \,-group-precedence (tokens)
-  "Simplify commath expressions by grouping by operator precedence.
+(defun \,-group-precedence (dir tokens remaining-ops)
+  "Simplify commath expression TOKENS by grouping around operators.
 
-This is not implemented efficiently, but is performed only during
-macro expansion.
-
-TOKENS is the list of tokens to group. This list may be
-destructively modified."
-  (\,--group-precedence 'right tokens \,-operator-rules))
-
-(defun \,--group-precedence (dir tokens remaining-ops)
-  "Handle associativity by reversing the tokens at certain points.
-
+DIR is the associativity direction of the tokens, which is
+normally `right', or `left' for tokens in reversed order.
 Regardless of initial order, when no operators remain, any tokens
-that remain ungrouped will be in the initial order."
+that remain ungrouped will be in `right'-associative order.
+
+REMAINING-OPS is a list of operators in the format of
+`commath-operator-rules'.
+
+The list of TOKENS may be destructively modified."
+  ;; This call will search for the first set of ops in the list.
   (-let [((assoc . ops) . later-ops) remaining-ops]
     (cond
+     ;; No operators left: return tokens in `right' order
      ((null ops)
-      (list '\, (if (eq dir 'left)
-                    (reverse tokens)
-                  tokens)))
-     ((--none? (memq it ops) tokens) ;; operator not present
-      (\,--group-precedence dir tokens later-ops))
-     (t ;; operator is present
+      (list '\, (if (eq dir 'left) (reverse tokens) tokens)))
+     ;; Target operator not present: search for rest.
+     ((--none? (memq it ops) tokens)
+      (\,-group-precedence dir tokens later-ops))
+     ;; Target operator is present
+     (t
       (unless (eq dir assoc)
-        ;; Can't use nreverse because group-operator uses the tail of
-        ;; the list
         (setq tokens (reverse tokens)))
-      (-let [(op right left) (\,-group-operator ops tokens)]
-        (when (eq assoc 'right)
+      (-let [(left op right) (\,--group-operator ops tokens)]
+        (when (eq assoc 'left)
+          ;; In left-associative order, "before operator" means right,
+          ;; and "after operator" means left, so swap.
           (\,--swap left right))
-        (when (null op)
-          ;; no op found despite earlier check
+        (when (null op) ;; no op found despite earlier check
           (error "Op not found, then found."))
         ;; op found, recur on each side
         ;; TODO: This should be a rewrite, not expansion.
         (list (alist-get op \,-operator-function-alist op)
-              (\,--group-precedence assoc left remaining-ops)
-              (\,--group-precedence assoc right remaining-ops)))))))
+              (\,-group-precedence assoc left remaining-ops)
+              (\,-group-precedence assoc right remaining-ops)))))))
 
-(defun \,-group-operator (ops tokens)
-  "Scan list and split around an operator from the list,
-returning a list of the operator, left, and right arguments
-(assuming they were in right-associative order).
+;; By recursively applying a function that groups at the first
+;; operator, we get right-associative grouping like (a ^ (b ^ c)).
+;; This is why `right' is the default token direction.
+(defun \,--group-operator (ops tokens)
+  "Split TOKENS around the first occurence of any of the OPS.
 
-If no operator is found, the operator and right argument will be
-nil."
+Return a three-element list containing the tokens before the
+operator, then the operator, then the tokens after the operator.
+
+If no operator is found, the second two elements of the list will
+be nil or missing."
   (-let [(left right) (--split-with (not (memq it ops)) tokens)]
-    (list (car right) left (cdr right))))
+    (list left (car right) (cdr right))))
 
 (defmacro \,--swap (a b)
   "Swap two variables."
