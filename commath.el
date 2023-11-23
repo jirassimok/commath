@@ -27,6 +27,9 @@
 ;; - Better error messages.
 ;; - Make `describe-function' report `\,' as a macro
 ;; - Make group-precedence efficient again?
+;; - Add a custom error type (`define-error'/`signal')
+;; - Optimize `\,--wrap'? Minimal impact, but I don't like how many
+;;   extra sets of parentheses are currently introduced.
 
 ;;; Code:
 (require 'backquote) ;; for docstring reasons
@@ -139,14 +142,10 @@ and returns unprocessed token types."
     ;; other cons must be group or args
     (_ 'group-or-args)))
 
-;; Convenience functions for creating commath forms in macros
+;; Convenience function for creating commath forms in macros
 (defun \,--wrap (arg)
   "Put a comma in front of something."
   (list '\, arg))
-
-(defun \,--ify (arg) ;; "commathify"
-  "Turn a form into a comma form."
-  (cons '\, arg))
 
 (defmacro \,-simple-expr (arg)
   "Expand single-argument commath input.
@@ -156,8 +155,10 @@ This must be a number, variable name, or group."
     ('number arg)
     ('name arg)
     ('constant (cdr (assq arg \,-constants)))
-    ('vector-group (\,--ify (append arg nil)))
-    ('group-or-args (\,--ify arg))
+    ('vector-group (\,--wrap (append arg nil)))
+    ;; This is the only place we can't use `\,--wrap', because
+    ;; wrapping a single list arg just rewrites (, (a b)) as itself.
+    ('group-or-args (cons '\, arg))
     ('quoted arg)
     ('operator (error "Operator (%s) expected two arguments." arg))
     (_ (error "Invalid type for commath expression."))))
@@ -173,7 +174,7 @@ This must be a function call."
      ((and (eq tname 'name) (eq targs 'group-or-args))
       (when (eq fname '1-)
         (error "Illegal commath expression; use (x - 1) instead of (1-(x))."))
-      (cons fname (--map (\,--ify it) (\,-split-fn-args args))))
+      (cons fname (--map (\,--wrap it) (\,-split-fn-args args))))
      ;; Bad expression types:
      ((eq 'operator tname)
       (error "Operator (%s) expected two arguments." fname))
@@ -227,7 +228,7 @@ The list of TOKENS may be destructively modified."
         ;; Note: This would be more efficient with direct recursion
         ;; (see git history), but for now, rewriting in terms of
         ;; simpler expressions is more inline with our goals.
-        (\,--ify
+        (\,--wrap
          (list (if (eq assoc 'left) (reverse right) left)
                op
                (if (eq assoc 'left) (reverse left) right))))))))
