@@ -26,8 +26,7 @@
 ;; - Add ability to override constants.
 ;; - Better error messages.
 ;; - Make `describe-function' report `\,' as a macro
-;; - Fix group-precedence to rewrite instead of expanding operators
-;;   fully
+;; - Make group-precedence efficient again?
 
 ;;; Code:
 (require 'backquote) ;; for docstring reasons
@@ -117,7 +116,7 @@ That expands to the following:
     (1 `(\,-simple-expr ,(car expr)))
     (2 `(\,-fn-expr ,(car expr) ,(cadr expr)))
     (3 `(\,-op-expr ,(car expr) ,(cadr expr) ,(caddr expr)))
-    (_ (\,-group-precedence 'right expr \,-operator-rules))))
+    (_ (\,-group-precedence expr \,-operator-rules))))
 
 ;; Define like `\`'; `\,' appears as its own object, not an alias.
 (defalias '\, (symbol-function 'commath))
@@ -196,48 +195,42 @@ This must be an operator expression."
   (setq op (alist-get op \,-operator-function-alist op))
   (list op (\,--wrap arg1) (\,--wrap arg2)))
 
-(defun \,-group-precedence (dir tokens remaining-ops)
-  "Simplify commath expression TOKENS by grouping around operators.
-
-DIR is the associativity direction of the tokens, which is
-normally `right', or `left' for tokens in reversed order.
-Regardless of initial order, when no operators remain, any tokens
-that remain ungrouped will be in `right'-associative order.
+(defun \,-group-precedence (tokens remaining-ops)
+  "Simplify commath expression TOKENS by grouping around an operator.
 
 REMAINING-OPS is a list of operators in the format of
 `commath-operator-rules'.
 
 The list of TOKENS may be destructively modified."
+  (when (length< tokens 4)
+    ;; This function simplifies expressions with more than 3 tokens
+    ;; only; if there are fewer, something else should have been used.
+    (error "Invalid call to `commath-group-precedence'"))
+
   ;; This call will search for the first set of ops in the list.
   (-let [((assoc . ops) . later-ops) remaining-ops]
     (cond
-     ;; No operators left: return tokens in `right' order
+     ;; No operators left: no grouping was possible
      ((null ops)
-      ;; Too many tokens left with no operators: fail to avoid
-      ;; recursion.
-      (if (length> tokens 3)
-          (error "Too many tokens in commath expression (%s)."
-                 tokens)
-        (\,--wrap (if (eq dir 'left) (reverse tokens) tokens))))
+      (error "No operators found in commath expression (%s)." tokens))
      ;; Target operator not present: search for rest.
      ((--none? (memq it ops) tokens)
-      (\,-group-precedence dir tokens later-ops))
+      (\,-group-precedence tokens later-ops))
      ;; Target operator is present
      (:else
-      (unless (eq dir assoc)
+      ;; For left-associative operators, we have to flip everything.
+      (when (eq assoc 'left)
         (setq tokens (reverse tokens)))
       (-let [(left op right) (\,--group-operator ops tokens)]
-        (when (eq assoc 'left)
-          ;; In left-associative order, "before operator" means right,
-          ;; and "after operator" means left, so swap.
-          (\,--swap left right))
         (when (null op) ;; no op found despite earlier check
           (error "Op not found, then found."))
-        ;; op found, recur on each side
-        ;; TODO: This should be a rewrite, not expansion.
-        (list (alist-get op \,-operator-function-alist op)
-              (\,-group-precedence assoc left remaining-ops)
-              (\,-group-precedence assoc right remaining-ops)))))))
+        ;; Note: This would be more efficient with direct recursion
+        ;; (see git history), but for now, rewriting in terms of
+        ;; simpler expressions is more inline with our goals.
+        (\,--ify
+         (list (if (eq assoc 'left) (reverse right) left)
+               op
+               (if (eq assoc 'left) (reverse left) right))))))))
 
 ;; By recursively applying a function that groups at the first
 ;; operator, we get right-associative grouping like (a ^ (b ^ c)).
