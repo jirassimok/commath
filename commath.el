@@ -213,7 +213,12 @@ The list of TOKENS may be destructively modified."
     (cond
      ;; No operators left: return tokens in `right' order
      ((null ops)
-      (\,--wrap (if (eq dir 'left) (reverse tokens) tokens)))
+      ;; Too many tokens left with no operators: fail to avoid
+      ;; recursion.
+      (if (length> tokens 3)
+          (error "Too many tokens in commath expression (%s)."
+                 tokens)
+        (\,--wrap (if (eq dir 'left) (reverse tokens) tokens))))
      ;; Target operator not present: search for rest.
      ((--none? (memq it ops) tokens)
       (\,-group-precedence dir tokens later-ops))
