@@ -292,6 +292,7 @@ be nil or missing."
                "\n\n"
                (substring doc split))))
 
+(provide 'commath)
 ;; Local Variables:
 ;; lexical-binding: t;
 ;; read-symbol-shorthands: ((",-" . "commath-"));
