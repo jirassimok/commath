@@ -20,10 +20,9 @@
 ;; TODO:
 ;; - Auto-group and/or/+/* operations.
 ;;   - Convert subtraction to negation and addition.
-;; - Add explicitly customizable operator list.
 ;; - Add chainable comparisons.
-;; - Add explicitly customizable constants.
 ;; - Add ability to override constants.
+;; - Fix operator alist to reject lambdas in customization.
 ;; - Better error messages.
 ;; - Make `describe-function' report `\,' as a macro
 ;; - Make group-precedence efficient again?
@@ -35,26 +34,36 @@
 (require 'backquote) ;; for docstring reasons
 (require 'dash)
 
-(defconst \,-constants
+(defgroup commath ()
+  "Comma-syntax infix math."
+  :group 'lisp
+  :group 'extensions)
+
+(defcustom \,-constants
   '((pi . float-pi)
     (e . float-e))
   "Constants for commath expressions. These are always rewritten to
 their associated values in commath expressions.
 
-For example ,\(pi + 1) expands to \(+ float-pi 1).")
+For example ,\(pi + 1) expands to \(+ float-pi 1)."
+  :type '(alist :key-type symbol
+                :value-type (choice variable number))
+  :group 'commath)
 ;; Constants are /always/ rewritten. Ideally, we would want to expand
 ;; them only when they don't have a different definition, but we can't
 ;; know that when the expansion takes place, so they are
 ;; unconditional. One alternative would be to expand constants like
 ;; this: (if (boundp 'e) e float-e).
 
-(defconst \,-operator-function-alist
+(defcustom \,-operator-function-alist
   '((^ . expt))
   "List associating operators with their functions.
 
-Any operator not in this list is associated with itself.")
+Any operator not in this list is associated with itself."
+  :type '(alist :key-type symbol :value-type function)
+  :group 'commath)
 
-(defconst \,-operator-rules
+(defcustom \,-operator-rules
   '((left and)
     (left or)
     (left < > <= >= = /=)
@@ -62,10 +71,25 @@ Any operator not in this list is associated with itself.")
     (left * / % mod)
     (right ^))
   "List of commath operators ordered by precedence and tagged by
-associativity.")
+associativity.
 
-(defconst \,-operators (-mapcat 'cdr \,-operator-rules)
-  "List of allowed operators in commath.")
+This is a list of operator sets in precedence order, which each
+operator set being a cons of either the symbol `left' or the
+symbol `right', representing the operators' associativity, and a
+list of operator symbols."
+  :type '(repeat (const (choice (const 'left) (const 'right))
+                        (repeat symbol)))
+  :set (lambda (name value)
+         (setq \,-operators (-mapcat 'cdr value))
+         (set name value))
+  :group 'commath)
+
+(defvar \,-operators (-mapcat 'cdr \,-operator-rules)
+  "List of allowed operators in commath.
+
+This is derived from `commath-operator-rules', and is updated
+when setting that value via its `custom-set' property; see
+`custom-set-variable'.")
 
 (defmacro commath (&rest expr)
   "Rewrite math EXPRESSIONs as Lisp forms.
