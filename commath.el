@@ -1,21 +1,34 @@
-;;; commath.el --- Non-prefix math using special comma syntax.
+;;; commath.el --- Non-prefix math using special comma syntax -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023 Jacob Komissar
 
 ;; Author: Jacob Komissar <18540209+jirassimok@users.noreply.github.com>
 ;; Version: 1.0
-;; Package-Requires: (dash)
+;; Package-Requires: ((emacs "28.1") (dash "2.14.0"))
 ;; Keywords: extensions, lisp
+;; Homepage: https://github.com/jirassimok/commath
 
 ;;; Commentary:
 ;;
 ;; This library implements a macro that allows infix math notation in
 ;; Emacs Lisp. The macro is named `\,' (or `commath') and it rewrites
 ;; certain types of expressions ("commath expressions") as Emacs Lisp
-;; expressions. See the documentation of the macro for details.
+;; expressions.
+;;
+;; Commath supports both infix math operators and C-style function
+;; calls, as well as customizable operators and constants.
 ;;
 ;; This is meant as a convenience for writing and reading long math
-;; expressions.
+;; expressions, and especially comparisons.
+;;
+;; See the documentation of the macro for more details.
+;;
+;; Examples:
+;;   ,(1 + 2)  =>  (+ 1 2)
+;;   ,(a < b)  =>  (< a b)
+;;   ,(3 * x + 4 * y)  =>  (+ (* 3 x) (* 4 y))
+;;   ,(4 * x ^ (2 * y))  =>  (* 4 (expt x (* 2 y)))
+;;   ,(cos(n * pi) + 1)  =>  (+ (cos (* 2 float-pi)) 1)
 ;;
 ;; TODO:
 ;; - Auto-group and/or/+/* operations.
@@ -318,7 +331,7 @@ be nil or missing."
 
 (provide 'commath)
 ;; Local Variables:
-;; lexical-binding: t;
 ;; read-symbol-shorthands: ((",-" . "commath-"));
+;; sentence-end-double-space: nil;
 ;; End:
 ;;; commath.el ends here
