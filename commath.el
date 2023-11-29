@@ -64,9 +64,9 @@ For example ,\(pi + 1) expands to \(+ float-pi 1)."
   :group 'commath)
 ;; Constants are /always/ rewritten. Ideally, we would want to expand
 ;; them only when they don't have a different definition, but we can't
-;; know that when the expansion takes place, so they are
-;; unconditional. One alternative would be to expand constants like
-;; this: (if (boundp 'e) e float-e).
+;; know that when the expansion takes place, so they are unconditional.
+;; One alternative would be to expand constants to something like this:
+;; (if (boundp 'e) e float-e).
 
 (defcustom \,-operator-function-alist
   '((^ . expt))
@@ -193,8 +193,8 @@ This must be a number, variable name, or group."
     ('name arg)
     ('constant (cdr (assq arg \,-constants)))
     ('vector-group (\,--wrap (append arg nil)))
-    ;; This is the only place we can't use `\,--wrap', because
-    ;; wrapping a single list arg just rewrites (, (a b)) as itself.
+    ;; This is the only place we can't use `\,--wrap', because wrapping
+    ;; a single list arg just rewrites (, (a b)) as itself.
     ('group-or-args (cons '\, arg))
     ('quoted arg)
     ('operator (error "Operator (%s) expected two arguments." arg))
@@ -262,17 +262,17 @@ The list of TOKENS may be destructively modified."
       (-let [(left op right) (\,--group-operator ops tokens)]
         (when (null op) ;; no op found despite earlier check
           (error "Op not found, then found."))
-        ;; Note: This would be more efficient with direct recursion
-        ;; (see git history), but for now, rewriting in terms of
-        ;; simpler expressions is more inline with our goals.
+        ;; Note: This would be more efficient with direct recursion (see
+        ;; git history), but for now, rewriting in terms of simpler
+        ;; expressions is more inline with our goals.
         (\,--wrap
          (list (if (eq assoc 'left) (reverse right) left)
                op
                (if (eq assoc 'left) (reverse left) right))))))))
 
-;; By recursively applying a function that groups at the first
-;; operator, we get right-associative grouping like (a ^ (b ^ c)).
-;; This is why `right' is the default token direction.
+;; By recursively applying a function that groups at the first operator,
+;; we get right-associative grouping like (a ^ (b ^ c)). This is why
+;; `right' is the default token direction.
 (defun \,--group-operator (ops tokens)
   "Split TOKENS around the first occurence of any of the OPS.
 
@@ -303,20 +303,19 @@ be nil or missing."
                  (cdr args)))))
 
 ;; Normally, backquote.el sets the docstring for `\,' using the
-;; function-documentation symbol property, and sets the
-;; reader-construct property, which makes `describe-function' say it
-;; is a reader construct and not include a signature.
+;; function-documentation symbol property, and sets the reader-construct
+;; property, which makes `describe-function' say it is a reader
+;; construct and not include a signature.
 ;;
 ;; We could just delete both of those properties and rely on the
-;; documentation from the macro's definition, but
-;; `help-fns--signature', doesn't handle the comma very nicely (it
-;; would print as (\, EXPR)).
+;; documentation from the macro's definition, but `help-fns--signature',
+;; doesn't handle the comma very nicely (it would print as (\, EXPR)).
 ;;
 ;; Instead, we take advantage of the lack of signature in reader-
 ;; construct help output and add the proper signature, which looks
-;; correct in output. While we're at it, add back the see-also bit
-;; from backquote.el to avoid confusion, just after the summary line
-;; of the `commath' docstring.
+;; correct in output. While we're at it, add back the see-also bit from
+;; backquote.el to avoid confusion, just after the summary line of the
+;; `commath' docstring.
 (put '\, 'function-documentation nil)
 
 (let* ((doc (documentation '\,))
@@ -333,5 +332,6 @@ be nil or missing."
 ;; Local Variables:
 ;; read-symbol-shorthands: ((",-" . "commath-"));
 ;; sentence-end-double-space: nil;
+;; fill-column: 72;
 ;; End:
 ;;; commath.el ends here
