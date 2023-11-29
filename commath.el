@@ -83,11 +83,25 @@ For example ,\(pi + 1) expands to \(+ float-pi 1)."
 
 (defcustom \,-operator-function-alist
   '((^ . expt))
-  "List associating operators with their functions.
+  "List associating commath operators with lisp functions.
 
-Any operator not in this list is associated with itself."
+If an operator is in this list, `commath' will expand it to the
+associated function. Any operator not in this list will be
+expanded to itself.
+
+The values in this alist must be function names, not lambdas."
   :type '(alist :key-type symbol :value-type function)
   :group 'commath)
+
+(defun \,-update-operators (&optional set-rules rules)
+  "Update commath operator lists.
+
+With no arguments, just update `commath-operators' based on
+`commath-operator-rules'. With SET-RULES non-nil, set
+`commath-operator-rules' to the given RULES first."
+  (when set-rules
+    (setq \,-operator-rules rules))
+  (setq \,-operators (-mapcat 'cdr \,-operator-rules)))
 
 (defcustom \,-operator-rules
   '((left and)
@@ -102,20 +116,21 @@ associativity.
 This is a list of operator sets in precedence order, which each
 operator set being a cons of either the symbol `left' or the
 symbol `right', representing the operators' associativity, and a
-list of operator symbols."
+list of operator symbols.
+
+This should only be modified using `customize' or
+`commath-update-operators'."
   :type '(repeat (const (choice (const 'left) (const 'right))
                         (repeat symbol)))
-  :set (lambda (name value)
-         (setq \,-operators (-mapcat 'cdr value))
-         (set name value))
+  :set '\,-update-operators
   :group 'commath)
 
-(defvar \,-operators (-mapcat 'cdr \,-operator-rules)
+(defvar \,-operators (\,-update-operators)
   "List of allowed operators in commath.
 
-This is derived from `commath-operator-rules', and is updated
-when setting that value via its `custom-set' property; see
-`custom-set-variable'.")
+This is derived from `commath-operator-rules', and should only be
+set by `customize'ing that variable or using
+`commath-update-operators'.")
 
 (defmacro commath (&rest expr)
   "Rewrite math EXPRESSIONs as Lisp forms.
@@ -127,7 +142,8 @@ expressions.\"
 There are five types of commath expression. First is a simple
 value, which may be a number or variable name. These are not
 rewritten by commath, except for `pi' and `e', which expand to
-`float-pi' and `float-e' respectively.
+`float-pi' and `float-e' respectively (these constants can be
+customized in `commath-constants').
 
 Second is X OP Y, where X and Y are commath expressions, and OP
 is an infix operator from the list below. There must be spaces
@@ -148,10 +164,12 @@ will not be evaluated. This allows passing symbols and
 non-numeric Emacs Lisp literals as arguments to functions if
 necessary.
 
-The allowed operators are `+', `-', `*', `/', `%', `mod', `<',
+The standard operators are `+', `-', `*', `/', `%', `mod', `<',
 `>', `<=', `>=', `/=', `and', `or', and `^'. These expand to the
 Emacs Lisp functions of the same names, except for `^', which
-expands to `expt'.
+expands to `expt'. The operators may be customzied by in
+`commath-operator-rules', and their expansions can be customized
+in `commath-operator-function-alist'.
 
 Here is an example demonstrating all of these features:
     ,(1 / 2 * (a - 3 ^ [x / 4] ^ 5)
