@@ -274,8 +274,6 @@ The list of TOKENS may be destructively modified."
       (when (eq assoc 'left)
         (setq tokens (reverse tokens)))
       (-let [(left op right) (\,--group-operator ops tokens)]
-        (when (null op) ;; no op found despite earlier check
-          (error "Op not found, then found."))
         ;; Note: This would be more efficient with direct recursion (see
         ;; git history), but for now, rewriting in terms of simpler
         ;; expressions is more inline with our goals.
@@ -293,10 +291,11 @@ The list of TOKENS may be destructively modified."
 Return a three-element list containing the tokens before the
 operator, then the operator, then the tokens after the operator.
 
-If no operator is found, the second two elements of the list will
-be nil or missing."
+If no operator is found, signal an error."
   (-let [(left right) (--split-with (not (memq it ops)) tokens)]
-    (list left (car right) (cdr right))))
+    (if right
+        (list left (car right) (cdr right))
+      (error "No operator found for grouping."))))
 
 (defun \,-split-fn-args (tokens)
   "Split function arguments into separate commath expressions."
