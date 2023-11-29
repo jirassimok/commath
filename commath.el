@@ -319,10 +319,6 @@ be nil or missing."
   (-let [(left right) (--split-with (not (memq it ops)) tokens)]
     (list left (car right) (cdr right))))
 
-(defmacro \,--swap (a b)
-  "Swap two variables."
-  `(setq ,a (prog1 ,b (setq ,b ,a))))
-
 (defun \,-split-fn-args (tokens)
   "Split function arguments into separate commath expressions."
   (when (and (consp (car tokens)) (eq '\, (caar tokens)))
