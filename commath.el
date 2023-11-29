@@ -60,6 +60,8 @@
 (require 'backquote) ;; for docstring reasons
 (require 'dash)
 
+;;;; Variable declarations and setup
+
 (defgroup commath ()
   "Comma-syntax infix math."
   :group 'lisp
@@ -131,6 +133,8 @@ This should only be modified using `customize' or
 This is derived from `commath-operator-rules', and should only be
 set by `customize'ing that variable or using
 `commath-update-operators'.")
+
+;;;; Main function and macro definitions
 
 (defmacro commath (&rest expr)
   "Rewrite math EXPRESSIONs as Lisp forms.
@@ -332,6 +336,8 @@ be nil or missing."
           ;; extract and combine the x and the (y z).
           (--map (cons (cadar it) (cdr it))
                  (cdr args)))))
+
+;;;; Documentation setup
 
 ;; Normally, backquote.el sets the docstring for `\,' using the
 ;; function-documentation symbol property, and sets the reader-construct
