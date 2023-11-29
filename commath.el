@@ -177,11 +177,11 @@ and returns unprocessed token types."
     ((pred numberp) 'number)
     ((pred \,-operator-p) 'operator)
     ((pred vectorp) 'vector-group)
-    ;; (Would use assq below, but wrong arg order.)
     ((pred (map-contains-key \,-constants)) 'constant)
     ((pred symbolp) 'name)
-    ;; Other non-cons values are not recognized tokens.
+    ;; Reject other non-conses
     ((pred (not consp)) nil)
+    ;; Reject quote-like conses
     ((app car (or 'quote '\, '\` '\,@)) nil)
     ;; other cons must be group or args
     (_ 'group-or-args)))
