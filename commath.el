@@ -122,7 +122,7 @@ This macro allows infix math operations and comparisons, formed
 from a limited set of expression types, refered to as \"commath
 expressions.\"
 
-There are five types of commath expression. First is a simple
+There are four types of commath expression. First is a simple
 value, which may be a number or variable name. These are not
 rewritten by commath, except for `pi' and `e', which expand to
 `float-pi' and `float-e' respectively (these constants can be
@@ -137,15 +137,10 @@ i.e. (EXPR) or [EXPR]. If the grouping symbols are left out of an
 expression, it will be implicitly grouped according to standard
 operator precedence and associativity, similar to C.
 
-The fourth type of commath expression is a function call, of the
+The final type of commath expression is a function call, of the
 form NAME(ARG1, ARG2, ...). NAME is an Emacs Lisp function, and
 ARG1, ARG2, and so on are commath expressions to use as its
 arguments.
-
-The final type of commath expression is a quoted value, which
-will not be evaluated. This allows passing symbols and
-non-numeric Emacs Lisp literals as arguments to functions if
-necessary.
 
 The standard operators are `+', `-', `*', `/', `%', `mod', `<',
 `>', `<=', `>=', `/=', `and', `or', and `^'. These expand to the
@@ -156,14 +151,14 @@ in `commath-operator-function-alist'.
 
 Here is an example demonstrating all of these features:
     ,(1 / 2 * (a - 3 ^ [x / 4] ^ 5)
-      * nth(2, mapcar('fn, '(1 2 3))))
+      * nth(2, list(1, 2, 3)))
 
 That expands to the following:
     (* (* (/ 1 2)
           (- a (expt 3
                      (expt (/ x 4)
                            5))))
-       (nth 6 (mapcar 'fn '(1 2 3))))
+       (nth 2 (list 1 2 3)))
 
 \(fn EXPRESSION)"
   (pcase (length expr)
@@ -187,9 +182,7 @@ and returns unprocessed token types."
     ((pred symbolp) 'name)
     ;; Other non-cons values are not recognized tokens.
     ((pred (not consp)) nil)
-    ;; 'quote means it's quoted for literal escape
-    ((app car 'quote) 'quoted)
-    ((app car (or '\, '\` '\,@)) nil)
+    ((app car (or 'quote '\, '\` '\,@)) nil)
     ;; other cons must be group or args
     (_ 'group-or-args)))
 
@@ -218,7 +211,6 @@ This must be a number, variable name, or group."
     ;; This is the only place we can't use `\,--wrap', because wrapping
     ;; a single list arg just rewrites (, (a b)) as itself.
     ('group-or-args (cons '\, arg))
-    ('quoted arg)
     ('operator (error "Operator (%s) expected two arguments." arg))
     (_ (error "Invalid type for commath expression."))))
 
