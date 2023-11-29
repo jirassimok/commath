@@ -95,16 +95,6 @@ The values in this alist must be function names, not lambdas."
   :type '(alist :key-type symbol :value-type function)
   :group 'commath)
 
-(defun \,-update-operators (&optional set-rules rules)
-  "Update commath operator lists.
-
-With no arguments, just update `commath-operators' based on
-`commath-operator-rules'. With SET-RULES non-nil, set
-`commath-operator-rules' to the given RULES first."
-  (when set-rules
-    (setq \,-operator-rules rules))
-  (setq \,-operators (-mapcat 'cdr \,-operator-rules)))
-
 (defcustom \,-operator-rules
   '((left and)
     (left or)
@@ -118,21 +108,10 @@ associativity.
 This is a list of operator sets in precedence order, which each
 operator set being a cons of either the symbol `left' or the
 symbol `right', representing the operators' associativity, and a
-list of operator symbols.
-
-This should only be modified using `customize' or
-`commath-update-operators'."
+list of operator symbols."
   :type '(repeat (const (choice (const 'left) (const 'right))
                         (repeat symbol)))
-  :set '\,-update-operators
   :group 'commath)
-
-(defvar \,-operators (\,-update-operators)
-  "List of allowed operators in commath.
-
-This is derived from `commath-operator-rules', and should only be
-set by `customize'ing that variable or using
-`commath-update-operators'.")
 
 ;;;; Main function and macro definitions
 
@@ -201,7 +180,7 @@ That expands to the following:
 and returns unprocessed token types."
   (pcase token
     ((pred numberp) 'number)
-    ((pred (seq-contains-p \,-operators)) 'operator)
+    ((pred \,-operator-p) 'operator)
     ((pred vectorp) 'vector-group)
     ;; (Would use assq below, but wrong arg order.)
     ((pred (map-contains-key \,-constants)) 'constant)
@@ -213,6 +192,14 @@ and returns unprocessed token types."
     ((app car (or '\, '\` '\,@)) nil)
     ;; other cons must be group or args
     (_ 'group-or-args)))
+
+(defun \,-operator-p (symbol)
+  "Return non-nil if the symbol is a `commath' operator."
+  ;; (memq symbol (-mapcat 'cdr \,-operator-rules))
+  (named-let recur ((ops \,-operator-rules))
+    (cond ((null ops) nil)
+          ((memq symbol (cdar ops)) t)
+          (:else (recur (cdr ops))))))
 
 ;; Convenience function for creating commath forms in macros
 (defun \,--wrap (arg)
