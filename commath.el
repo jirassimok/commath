@@ -3,7 +3,7 @@
 ;; Copyright (C) 2023 Jacob Komissar
 
 ;; Author: Jacob Komissar <18540209+jirassimok@users.noreply.github.com>
-;; Version: 1.1
+;; Version: 1.2
 ;; Package-Requires: ((emacs "28.1") (dash "2.14.0"))
 ;; Keywords: extensions, lisp
 ;; Homepage: https://github.com/jirassimok/commath
