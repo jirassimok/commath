@@ -29,7 +29,7 @@
 ;; expressions.
 ;;
 ;; Commath supports both infix math operators and C-style function
-;; calls, as well as customizable operators and constants.
+;; calls, as well as customizable operators.
 ;;
 ;; This is meant as a convenience for writing and reading long math
 ;; expressions, and especially comparisons.
@@ -47,7 +47,6 @@
 ;; - Auto-group and/or/+/* operations.
 ;;   - Convert subtraction to negation and addition.
 ;; - Add chainable comparisons.
-;; - Add ability to override constants.
 ;; - Fix operator alist to reject lambdas in customization.
 ;; - Better error messages.
 ;; - Make `describe-function' report `\,' as a macro
@@ -66,22 +65,6 @@
   "Comma-syntax infix math."
   :group 'lisp
   :group 'extensions)
-
-(defcustom \,-constants
-  '((pi . float-pi)
-    (e . float-e))
-  "Constants for commath expressions. These are always rewritten to
-their associated values in commath expressions.
-
-For example ,\(pi + 1) expands to \(+ float-pi 1)."
-  :type '(alist :key-type symbol
-                :value-type (choice variable number))
-  :group 'commath)
-;; Constants are /always/ rewritten. Ideally, we would want to expand
-;; them only when they don't have a different definition, but we can't
-;; know that when the expansion takes place, so they are unconditional.
-;; One alternative would be to expand constants to something like this:
-;; (if (boundp 'e) e float-e).
 
 (defcustom \,-operator-function-alist
   '((^ . expt))
@@ -124,9 +107,7 @@ expressions.\"
 
 There are four types of commath expression. First is a simple
 value, which may be a number or variable name. These are not
-rewritten by commath, except for `pi' and `e', which expand to
-`float-pi' and `float-e' respectively (these constants can be
-customized in `commath-constants').
+rewritten by commath.
 
 Second is X OP Y, where X and Y are commath expressions, and OP
 is an infix operator from the list below. There must be spaces
@@ -177,7 +158,6 @@ and returns unprocessed token types."
     ((pred numberp) 'number)
     ((pred \,-operator-p) 'operator)
     ((pred vectorp) 'vector-group)
-    ((pred (map-contains-key \,-constants)) 'constant)
     ((pred symbolp) 'name)
     ;; Reject other non-conses
     ((pred (not consp)) nil)
@@ -206,7 +186,6 @@ This must be a number, variable name, or group."
   (pcase (\,-token-type arg)
     ('number arg)
     ('name arg)
-    ('constant (cdr (assq arg \,-constants)))
     ('vector-group (\,--wrap (append arg nil)))
     ;; This is the only place we can't use `\,--wrap', because wrapping
     ;; a single list arg just rewrites (, (a b)) as itself.
